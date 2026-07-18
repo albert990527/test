@@ -1,0 +1,761 @@
+<!-- 助教課學生成績點名績效混合系統 · v3 -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>助教課成績系統</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --paper:#EBEEF3; --surface:#FFFFFF; --surface-2:#F6F8FB;
+    --ink:#17213B; --ink-soft:#5A647E; --ink-faint:#8B93A7;
+    --line:#DBE0EA; --line-strong:#C3CAD8;
+    --gold:#B0812B; --gold-dk:#8F6820;
+    --att:#2E7D74; --grd:#2B4A80;
+    --ok:#177C46; --warn:#C07A0C; --bad:#B32633;
+    --add:#177C46; --chg:#C07A0C;
+    --font:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    --mono:"SF Mono","JetBrains Mono",ui-monospace,Menlo,Consolas,"Courier New",monospace;
+    --sh:0 1px 2px rgba(23,33,59,.06),0 4px 14px rgba(23,33,59,.05);
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+  button{font-family:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
+  ::-webkit-scrollbar{height:10px;width:10px}::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:6px}
+
+  .app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+  .side{background:var(--ink);color:#C9D0E0;padding:20px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px}
+  .brand{display:flex;align-items:baseline;gap:8px;padding:6px 10px 16px;border-bottom:1px solid rgba(255,255,255,.09);margin-bottom:10px}
+  .brand .seal{font-family:var(--mono);font-weight:700;letter-spacing:1px;color:var(--gold);border:1.5px solid var(--gold);border-radius:5px;padding:2px 6px;font-size:12px}
+  .brand b{color:#fff;font-size:15px;letter-spacing:.5px}
+  .brand small{display:block;color:#7F89A3;font-size:11px;margin-top:2px;letter-spacing:2px}
+  .nav{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+  .nav button{width:100%;text-align:left;background:none;border:0;color:#C0C8DA;padding:9px 12px;border-radius:7px;font-size:14px;display:flex;align-items:center;gap:10px;transition:.12s}
+  .nav button .ico{width:18px;text-align:center;opacity:.85}
+  .nav button:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav button.on{background:rgba(176,129,43,.16);color:#fff;box-shadow:inset 2px 0 0 var(--gold)}
+  .side-foot{margin-top:auto;font-size:11px;color:#6C7691;padding:10px;border-top:1px solid rgba(255,255,255,.08);line-height:1.6}
+
+  main{padding:22px 30px 60px;max-width:1180px}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .clswitch{display:flex;align-items:center;gap:8px}
+  .clswitch label{font-size:12px;color:var(--ink-soft);font-weight:600}
+  .clswitch select{border:1px solid var(--line-strong);border-radius:9px;padding:8px 12px;background:var(--surface);font-weight:600;box-shadow:var(--sh);min-width:210px}
+  .clswitch select:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(176,129,43,.14)}
+  .head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+  .head h1{margin:0;font-size:22px;letter-spacing:.5px}
+  .head p{margin:4px 0 0;color:var(--ink-soft);font-size:13px}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);margin-bottom:18px}
+  .card-h{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .card-h h2{margin:0;font-size:15px;letter-spacing:.5px}
+  .card-h .sub{color:var(--ink-faint);font-size:12px;margin-top:2px}
+  .card-b{padding:16px 18px}.card-b.flush{padding:0}
+
+  .btn{border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);padding:7px 13px;border-radius:8px;font-size:13px;font-weight:500;transition:.12s;display:inline-flex;align-items:center;gap:6px}
+  .btn:hover{border-color:var(--ink-soft);background:var(--surface-2)}
+  .btn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}.btn.pri:hover{background:#0f1830}
+  .btn.gold{background:var(--gold);border-color:var(--gold);color:#fff}.btn.gold:hover{background:var(--gold-dk)}
+  .btn.sm{padding:4px 9px;font-size:12px}
+  .btn.danger{color:var(--bad);border-color:#E8B9BE}.btn.danger:hover{background:#FCEEEF;border-color:var(--bad)}
+  .btn.ghost{border-color:transparent;background:transparent;color:var(--ink-soft)}.btn.ghost:hover{background:var(--surface-2);color:var(--ink)}
+
+  .tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  .tbl th,.tbl td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line)}
+  .tbl thead th{background:var(--surface-2);color:var(--ink-soft);font-weight:600;font-size:12px;letter-spacing:.4px;position:sticky;top:0;z-index:2;white-space:nowrap}
+  .tbl tbody tr:hover{background:#FAFBFD}
+  .tbl td.c,.tbl th.c{text-align:center}.tbl td.r,.tbl th.r{text-align:right}
+  .tbl .sid{color:var(--ink-faint);font-family:var(--mono);font-size:12.5px}
+  .scroll{overflow:auto;max-height:70vh;border-radius:0 0 12px 12px}
+  .grp{display:inline-block;font-size:11px;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-soft);padding:1px 7px;border-radius:20px}
+
+  .cell-in{width:60px;border:1px solid var(--line);border-radius:6px;padding:5px 6px;text-align:center;font-family:var(--mono);background:var(--surface-2)}
+  .cell-in:focus{outline:none;border-color:var(--gold);background:#fff;box-shadow:0 0 0 3px rgba(176,129,43,.14)}
+  .cell-in.big{width:72px}
+  input.f,select.f,textarea.f{width:100%;border:1px solid var(--line-strong);border-radius:8px;padding:8px 10px;background:var(--surface)}
+  input.f:focus,select.f:focus,textarea.f:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(176,129,43,.14)}
+  label.fl{display:block;font-size:12px;color:var(--ink-soft);margin:0 0 5px;font-weight:600;letter-spacing:.3px}
+
+  .final{font-family:var(--mono);font-size:16px;font-weight:700}
+  .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;letter-spacing:.5px;display:inline-block}
+  .badge.ok{background:#E4F2EA;color:var(--ok)}.badge.warn{background:#FBF0DD;color:#9A6205}.badge.bad{background:#FBE6E8;color:var(--bad)}
+  .badge.add{background:#E4F2EA;color:var(--add)}.badge.chg{background:#FBF0DD;color:var(--chg)}
+
+  .compbar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2);min-width:120px;border:1px solid var(--line)}
+  .compbar i{display:block;height:100%}
+  .comp-att{background:var(--att)}.comp-grd{background:var(--grd)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:18px}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--sh)}
+  .stat .k{font-size:12px;color:var(--ink-soft);letter-spacing:.5px}
+  .stat .v{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1.1;margin-top:6px}
+  .stat .v small{font-size:14px;color:var(--ink-faint);font-weight:400}
+  .stat .m{font-size:11.5px;color:var(--ink-faint);margin-top:4px}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--ink-soft);align-items:center}
+  .legend span{display:inline-flex;align-items:center;gap:6px}.legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+  .empty{text-align:center;padding:44px 20px;color:var(--ink-faint)}
+  .empty h3{color:var(--ink);margin:0 0 6px;font-size:16px}
+  .empty p{margin:0 auto 18px;max-width:460px;font-size:13.5px;line-height:1.6}
+  .row{display:flex;gap:12px;flex-wrap:wrap}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+  .ov{position:fixed;inset:0;background:rgba(15,22,42,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+  .modal{background:var(--surface);border-radius:14px;max-width:560px;width:100%;box-shadow:0 20px 60px rgba(15,22,42,.3);max-height:88vh;overflow:auto}
+  .modal.wide{max-width:760px}
+  .modal-h{padding:16px 20px;border-bottom:1px solid var(--line);font-weight:700;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+  .modal-b{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+  .modal-f{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+  .x{border:0;background:none;font-size:20px;color:var(--ink-faint);line-height:1;padding:2px 6px;border-radius:6px}.x:hover{background:var(--surface-2);color:var(--ink)}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:10px;font-size:13.5px;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:80;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1;bottom:30px}
+  .hint{font-size:12px;color:var(--ink-faint);line-height:1.6}
+  .tabs{display:flex;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px;flex-wrap:wrap}
+  .tabs button{border:0;background:none;padding:6px 12px;border-radius:7px;font-size:13px;color:var(--ink-soft)}
+  .tabs button.on{background:var(--surface);color:var(--ink);box-shadow:var(--sh);font-weight:600}
+  .wt-warn{color:var(--bad);font-weight:600}.mono-tot{font-family:var(--mono);color:var(--ink-soft)}
+
+  .loader{display:flex;align-items:center;justify-content:center;height:100vh;color:var(--ink-soft);gap:10px;font-size:14px}
+  .spin{width:18px;height:18px;border:2.5px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* sync diff */
+  .diffgrp{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .diffgrp>summary{padding:10px 14px;background:var(--surface-2);cursor:pointer;font-weight:600;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+  .diffgrp>summary::-webkit-details-marker{display:none}
+  .difflist{max-height:210px;overflow:auto}
+  .difflist table{width:100%;border-collapse:collapse;font-size:12.5px}
+  .difflist td{padding:6px 12px;border-bottom:1px solid var(--line)}
+  .arrow{color:var(--ink-faint);margin:0 6px}
+  .oldv{color:var(--ink-faint);text-decoration:line-through}
+  .newv{color:var(--chg);font-weight:700}
+  .drop{border:2px dashed var(--line-strong);border-radius:12px;padding:26px;text-align:center;color:var(--ink-soft);background:var(--surface-2)}
+  .drop.hot{border-color:var(--gold);background:#FBF6EA}
+
+  @media(max-width:860px){
+    .app{grid-template-columns:1fr}
+    .side{position:static;height:auto}.nav{flex-direction:row;overflow-x:auto}.nav button{white-space:nowrap}.side-foot{display:none}
+    main{padding:16px 14px 50px}.grid2{grid-template-columns:1fr}
+  }
+</style>
+
+<div id="root"><div class="loader"><div class="spin"></div>載入資料中…</div></div>
+
+<script>
+"use strict";
+const STORE_KEY="ta_grade_system_v3";
+
+/* ---------- 資料結構 ---------- */
+function newClass(name){
+  return { id:uid(), name:name||"新班級", term:"1122",
+    settings:{ weights:{attendance:30, grade:70}, missingAsZero:true, passLine:60 },
+    students:[], gradeItems:[], grades:{}, attDirect:{}, perfLog:[] };
+}
+function defaultState(){ return { activeClass:null, classes:[] }; }
+
+/* ---------- 工具 ---------- */
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function clamp(n,a,b){ return Math.max(a,Math.min(b,n)); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function fmt(n,d=1){ return (n==null||isNaN(n))?"—":Number(n).toFixed(d); }
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function cleanName(s){ return String(s==null?"":s).replace(/\s*[\(（][^）)]*[\)）]\s*$/,"").trim(); }
+
+let S=defaultState(), view="dash", gradeTab="all", sortFinal={key:"final",dir:-1}, pendingSync=null;
+function C(){ return S.classes.find(c=>c.id===S.activeClass)||null; }
+
+/* ---------- 儲存 ---------- */
+let saveTimer=null;
+async function loadState(){
+  // 清除舊版(v1/v2)殘留,避免舊的預設/範例資料復活
+  ["ta_grade_system_v1","ta_grade_system_v2"].forEach(async k=>{ try{ await window.storage.delete(k); }catch(e){} });
+  try{ const r=await window.storage.get(STORE_KEY); if(r&&r.value) S=migrate(JSON.parse(r.value)); }catch(e){}
+  if(!S.classes) S.classes=[];
+  if(!S.activeClass && S.classes.length) S.activeClass=S.classes[0].id;
+}
+function migrate(p){ const s=Object.assign(defaultState(),p);
+  if(!Array.isArray(s.classes)) s.classes=[];
+  s.classes.forEach(c=>{ c.perfLog=c.perfLog||[]; c.attDirect=c.attDirect||{}; c.grades=c.grades||{};
+    c.gradeItems=(c.gradeItems||[]).map(i=>Object.assign({max:100},i));
+    c.settings=Object.assign({weights:{attendance:30,grade:70},missingAsZero:true,passLine:60},c.settings||{});
+    delete c.sessions; delete c.attendance; });
+  return s; }
+function save(){ clearTimeout(saveTimer); saveTimer=setTimeout(async()=>{
+  try{ await window.storage.set(STORE_KEY, JSON.stringify(S)); }catch(e){ toast("儲存失敗,本次暫存"); } },300); }
+
+/* ---------- 計算 ---------- */
+function attendanceScore(cls,sid){ const v=cls.attDirect[sid]; return (v==null||v===""||isNaN(v))?null:clamp(+v,0,100); }
+function gradeScore(cls,sid){
+  const items=cls.gradeItems; if(!items.length) return null;
+  const g=cls.grades[sid]||{}, zero=cls.settings.missingAsZero;
+  let sum=0,wsum=0,any=false;
+  items.forEach(i=>{ const v=g[i.id],w=(+i.weight||0),mx=(+i.max)||100; const has=(v!=null&&v!==""&&!isNaN(v));
+    if(has){ sum+=((+v)/mx*100)*w; wsum+=w; any=true; } else if(zero){ wsum+=w; } });
+  if(!any&&!zero) return null;
+  return wsum? sum/wsum : (zero?0:null);
+}
+function bonusOf(cls,sid){ return (cls.perfLog||[]).filter(e=>e.studentId===sid).reduce((a,e)=>a+(+e.bonus||0),0); }
+function compute(cls,sid){
+  const w=cls.settings.weights;
+  const a=attendanceScore(cls,sid), g=gradeScore(cls,sid), bonus=bonusOf(cls,sid);
+  const av=a??0, gv=g??0;
+  const final=clamp(av*w.attendance/100 + gv*w.grade/100 + bonus, 0, 100);
+  return {a,g,bonus,final,contrib:{att:av*w.attendance/100, grd:gv*w.grade/100}};
+}
+function weightTotal(cls){ const w=cls.settings.weights; return (+w.attendance||0)+(+w.grade||0); }
+function classAttRate(cls){ const a=cls.students.map(s=>attendanceScore(cls,s.id)).filter(v=>v!=null); return a.length?a.reduce((x,y)=>x+y,0)/a.length:null; }
+
+/* 問題診斷 */
+function diagnose(cls,sid){
+  const out=[]; const a=attendanceScore(cls,sid);
+  if(a!=null && a<60) out.push("點名太少");
+  const g=cls.grades[sid]||{};
+  const miss=i=>{ const v=g[i.id]; return v==null||v===""||isNaN(v); };
+  const ex=cls.gradeItems.filter(i=>i.category==="考試"&&miss(i)).length;
+  const hw=cls.gradeItems.filter(i=>i.category==="作業"&&miss(i)).length;
+  if(ex) out.push("考試缺考×"+ex);
+  if(hw) out.push("作業未交×"+hw);
+  const gs=gradeScore(cls,sid);
+  if(gs!=null && gs<cls.settings.passLine) out.push("成績偏低");
+  return out;
+}
+function probTags(cls,sid){ const d=diagnose(cls,sid);
+  return d.length? d.map(t=>`<span class="badge bad" style="margin:1px 2px">${esc(t)}</span>`).join("") : '<span style="color:var(--ink-faint)">—</span>'; }
+
+/* ---------- 檔案解析(平台格式 xlsx / csv) ---------- */
+function parseGrid(rows){
+  // 找表頭列:某列含「帳號」或「姓名」
+  let h=-1;
+  for(let i=0;i<Math.min(rows.length,30);i++){ const row=(rows[i]||[]).map(x=>String(x==null?"":x).trim());
+    if(row.includes("帳號")||row.includes("姓名")){ h=i; break; } }
+  if(h<0) throw new Error("找不到表頭(需有「帳號」或「姓名」欄)");
+  const hdr=rows[h].map(x=>String(x==null?"":x));
+  const findCol=re=>hdr.findIndex(x=>re.test(x));
+  const col={ sid:findCol(/帳號/), seat:findCol(/座號/), name:findCol(/姓名/), dept:findCol(/院系/), group:findCol(/班級/) };
+  if(col.sid<0 && col.name<0) throw new Error("表頭需要有「帳號」或「姓名」欄");
+  const attCol=findCol(/點名/);   // 可省略,-1 表示沒有點名欄
+  // 身分/尾欄範圍
+  const idIdx=[col.sid,col.seat,col.name,col.dept,col.group].filter(i=>i>=0);
+  const maxId=idIdx.length?Math.max(...idIdx):0;
+  let endCol=hdr.length;
+  [/原始成績/,/最終成績/,/備註/,/退選/].forEach(re=>{ const i=findCol(re); if(i>maxId && i<endCol) endCol=i; });
+  // 第二層表頭(合併群組下的細項名)
+  const next=rows[h+1]||[];
+  const anchor = col.sid>=0?col.sid:(col.name>=0?col.name:0);
+  const av=String((next[anchor]==null?"":next[anchor])).trim();
+  const nextIsData = col.sid>=0 ? (av!=="" && /\d/.test(av)) : (av!=="");
+  const idSet=new Set(idIdx);
+  const itemCols=[];
+  for(let c=maxId+1;c<endCol;c++){
+    if(c===attCol||idSet.has(c)) continue;
+    let nm = (!nextIsData && next[c]!=null && String(next[c]).trim()!=="") ? next[c] : hdr[c];
+    nm=cleanName(nm);
+    if(nm) itemCols.push({col:c,name:nm});
+  }
+  const start = nextIsData ? h+1 : h+2;
+  const num=v=>{ if(v==null||v===""||String(v).trim()==="未繳") return null; const n=Number(v); return isNaN(n)?null:n; };
+  const cell=(r,i)=> (i>=0 && r[i]!=null) ? String(r[i]).trim() : "";
+  const out=[];
+  for(let i=start;i<rows.length;i++){
+    const r=rows[i]||[];
+    const sid=cell(r,col.sid), name=cell(r,col.name);
+    if(sid==="" && name==="") continue;
+    if(/教師|合計|平均|總計/.test(sid+name)) continue;
+    out.push({ sid, seat:cell(r,col.seat), name, dept:cell(r,col.dept), group:cell(r,col.group),
+      att: attCol>=0?num(r[attCol]):null, scores:itemCols.map(ic=>num(r[ic.col])) });
+  }
+  return { items:itemCols.map(x=>x.name), hasAtt:attCol>=0, rows:out };
+}
+function parseCSVText(text){
+  const rows=[]; let cur=[],val="",q=false;
+  for(let i=0;i<text.length;i++){ const ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){ val+='"'; i++; } else q=false; } else val+=ch; }
+    else if(ch==='"') q=true;
+    else if(ch===","){ cur.push(val); val=""; }
+    else if(ch==="\n"){ cur.push(val); rows.push(cur); cur=[]; val=""; }
+    else if(ch!=="\r") val+=ch; }
+  if(val!==""||cur.length){ cur.push(val); rows.push(cur); }
+  return rows;
+}
+function readFile(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onerror=()=>rej(new Error("讀取檔案失敗"));
+    if(/\.csv$/i.test(file.name)){
+      r.onload=()=>{ try{ res(parseGrid(parseCSVText(String(r.result).replace(/^\ufeff/,"")))); }catch(e){ rej(e); } };
+      r.readAsText(file,"utf-8");
+    } else {
+      r.onload=()=>{ try{
+        if(!window.XLSX) throw new Error("Excel 解析元件未載入(需連上網路),請改上傳 CSV");
+        const wb=XLSX.read(new Uint8Array(r.result),{type:"array"});
+        const ws=wb.Sheets[wb.SheetNames.includes("匯總")?"匯總":wb.SheetNames[0]];
+        res(parseGrid(XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:null})));
+      }catch(e){ rej(e); } };
+      r.readAsArrayBuffer(file);
+    }
+  });
+}
+
+/* ---------- 同步比對 ---------- */
+function planSync(cls,parsed){
+  const plan={newItems:[],newStu:[],updStu:[],updAtt:[],updGrade:[],matched:0,same:0};
+  // 欄位(成績項目):名稱已存在→沿用;不存在→新增
+  const byName={}; cls.gradeItems.forEach(i=>byName[i.name]=i);
+  parsed.items.forEach(nm=>{ if(!byName[nm]){ const it={id:uid(),name:nm,category:/作業/.test(nm)?"作業":"考試",weight:0,max:100,_new:true};
+    byName[nm]=it; plan.newItems.push(it); } });
+  const used=new Set();
+  const matchStu=r=>{
+    // 先以帳號對齊
+    if(r.sid){ const s=cls.students.find(x=>x.sid && String(x.sid)===String(r.sid)); if(s) return s; }
+    // 帳號對不到→以姓名對齊(需唯一且未被用過)
+    if(r.name){ const cand=cls.students.filter(x=>x.name && x.name===r.name && !used.has(x.id)); if(cand.length===1) return cand[0]; }
+    return null;
+  };
+  parsed.rows.forEach(r=>{
+    const s=matchStu(r);
+    if(!s){ plan.newStu.push(r); return; }
+    used.add(s.id); plan.matched++;
+    // 帳號視為可更新欄位(以姓名對齊時,帳號若不同會被更新/補上)
+    ["sid","seat","name","dept","group"].forEach(f=>{ const ov=String(s[f]||""), nv=String(r[f]||"");
+      if(nv!=="" && ov!==nv) plan.updStu.push({sid:s.id,acct:s.sid,name:s.name,field:f,from:ov,to:nv}); });
+    if(parsed.hasAtt){   // 檔案沒有點名欄時,完全不動點名成績
+      const oa=cls.attDirect[s.id];
+      const sameAtt=(oa==null&&r.att==null)||(oa!=null&&r.att!=null&&Number(oa)===Number(r.att));
+      if(!sameAtt) plan.updAtt.push({sid:s.id,acct:s.sid,name:s.name,from:oa,to:r.att});
+    }
+    parsed.items.forEach((nm,ix)=>{ const it=byName[nm]; const nv=r.scores[ix];
+      const ov=it._new?undefined:(cls.grades[s.id]||{})[it.id];
+      const oNull=(ov==null||ov===""||isNaN(ov)), nNull=(nv==null);
+      if(oNull&&nNull) return;
+      if(!oNull&&!nNull&&Number(ov)===Number(nv)){ plan.same++; return; }
+      plan.updGrade.push({sid:s.id,acct:s.sid,name:s.name,item:it,itemName:nm,from:oNull?null:ov,to:nv}); });
+  });
+  plan.total=plan.newItems.length+plan.newStu.length+plan.updStu.length+plan.updAtt.length+plan.updGrade.length;
+  return plan;
+}
+function applySync(cls,plan,parsed){
+  plan.newItems.forEach(it=>{ const c={id:it.id,name:it.name,category:it.category,weight:it.weight,max:it.max}; cls.gradeItems.push(c); });
+  plan.newStu.forEach(r=>{ const id=uid();
+    cls.students.push({id,sid:r.sid,seat:r.seat,name:r.name,dept:r.dept,group:r.group});
+    if(r.att!=null) cls.attDirect[id]=r.att;
+    cls.grades[id]={};
+    const byName={}; cls.gradeItems.forEach(i=>byName[i.name]=i);
+    parsed.items.forEach((nm,ix)=>{ const it=byName[nm]; const v=r.scores[ix]; if(it&&v!=null) cls.grades[id][it.id]=v; }); });
+  plan.updStu.forEach(u=>{ const s=cls.students.find(x=>x.id===u.sid); if(s) s[u.field]=u.to; });
+  plan.updAtt.forEach(u=>{ if(u.to==null) delete cls.attDirect[u.sid]; else cls.attDirect[u.sid]=u.to; });
+  plan.updGrade.forEach(u=>{ cls.grades[u.sid]=cls.grades[u.sid]||{};
+    if(u.to==null) delete cls.grades[u.sid][u.item.id]; else cls.grades[u.sid][u.item.id]=u.to; });
+  save();
+}
+
+/* ---------- 渲染 ---------- */
+function render(){ document.getElementById("root").innerHTML=shell(body()); wire(); }
+function shell(inner){
+  const items=[["dash","儀表板","▤"],["roster","學生名單","☰"],["attend","點名成績","◉"],
+    ["grades","成績登錄","✎"],["perf","課堂績效","★"],["final","混合成績","∑"],["sync","匯入更新","⟳"],["settings","設定","⚙"]];
+  return `<div class="app"><aside class="side">
+      <div class="brand"><span class="seal">TA</span><div><b>成績系統</b><small>MULTI-CLASS</small></div></div>
+      <nav><ul class="nav">${items.map(([k,l,i])=>`<li><button data-nav="${k}" class="${view===k?'on':''}"><span class="ico">${i}</span>${l}</button></li>`).join("")}</ul></nav>
+      <div class="side-foot">資料自動儲存於此瀏覽器帳號。可於設定匯出備份。</div>
+    </aside><main>${topbar()}${inner}</main></div>`;
+}
+function topbar(){
+  if(!S.classes.length) return "";
+  return `<div class="topbar"><div class="clswitch"><label>目前班級</label>
+      <select id="clsel">${S.classes.map(c=>`<option value="${c.id}" ${c.id===S.activeClass?'selected':''}>${esc(c.name)}</option>`).join("")}</select>
+      <button class="btn sm" id="addCls">＋ 班級</button></div>
+    <div class="hint">共 ${S.classes.length} 個班級 · ${S.classes.reduce((a,c)=>a+c.students.length,0)} 位學生</div></div>`;
+}
+function head(title,sub){ const cls=C(); if(!cls) return `<div class="head"><div><h1>${esc(title)}</h1></div></div>`;
+  return `<div class="head"><div><h1>${esc(title)}</h1><p>${sub||esc(cls.name)+' · '+esc(cls.term)}</p></div></div>`; }
+function body(){ if(!S.classes.length) return firstRun();
+  return ({dash:dashView,roster:rosterView,attend:attendView,grades:gradesView,perf:perfView,final:finalView,sync:syncView,settings:settingsView}[view])(); }
+
+function firstRun(){
+  return `<div class="head"><div><h1>助教課成績系統</h1><p>多班級 · 點名成績 · 作業/考試 · 課堂績效 · 混合成績</p></div></div>
+  <div class="card"><div class="card-b"><div class="empty"><h3>目前沒有任何資料</h3>
+    <p>系統是空的,沒有任何預設資料。建立班級後,直接上傳平台匯出的成績單(.xlsx / .csv),名單、點名成績與各項成績會自動帶入。</p>
+    <div class="row" style="justify-content:center">
+      <button class="btn pri" id="firstAdd">＋ 建立班級並上傳成績單</button>
+      <button class="btn" id="firstImport">還原備份(JSON)</button>
+    </div></div></div></div>`;
+}
+
+/* 儀表板 */
+function dashView(){
+  const cls=C(), st=cls.students;
+  const totCls=S.classes.length, totStu=S.classes.reduce((a,c)=>a+c.students.length,0);
+  const rate=classAttRate(cls);
+  const fs=st.map(s=>compute(cls,s.id).final);
+  const avg=fs.length?fs.reduce((a,b)=>a+b,0)/fs.length:null;
+  const pass=fs.filter(f=>f>=cls.settings.passLine).length;
+  const risk=st.map(s=>({s,c:compute(cls,s.id)})).filter(r=>r.c.final<cls.settings.passLine).sort((a,b)=>a.c.final-b.c.final);
+  return head("儀表板")+`
+  <div class="stats">
+    <div class="stat"><div class="k">接的班級</div><div class="v num">${totCls}<small> 班</small></div><div class="m">全部學生共 ${totStu} 位</div></div>
+    <div class="stat"><div class="k">本班人數</div><div class="v num">${st.length}<small> 人</small></div><div class="m">${esc(cls.name)}</div></div>
+    <div class="stat"><div class="k">整體出席率</div><div class="v num" style="color:${rate!=null&&rate<60?'var(--bad)':'var(--ink)'}">${rate==null?'—':fmt(rate,0)+'%'}</div><div class="m">全班點名成績平均</div></div>
+    <div class="stat"><div class="k">平均混合成績</div><div class="v num" style="color:${avg!=null&&avg>=cls.settings.passLine?'var(--ok)':'var(--bad)'}">${fmt(avg)}</div><div class="m">及格 ${pass}/${st.length}(線 ${cls.settings.passLine}）</div></div>
+  </div>
+  <div class="card"><div class="card-h"><div><h2>需要關注(未達 ${cls.settings.passLine} 分)</h2><div class="sub">由低到高</div></div>
+    <button class="btn sm" data-nav="final">前往混合成績 →</button></div>
+    <div class="card-b flush">${risk.length?`<div class="scroll"><table class="tbl"><thead><tr><th>帳號</th><th>姓名</th><th class="c">點名</th><th class="c">成績</th><th class="r">混合</th><th class="c">狀態</th><th style="width:170px">問題</th></tr></thead>
+      <tbody>${risk.map(r=>`<tr><td class="sid">${esc(r.s.sid)}</td><td>${esc(r.s.name)}</td>
+        <td class="c num">${fmt(r.c.a,0)}</td><td class="c num">${fmt(r.c.g,0)}</td>
+        <td class="r final" style="color:var(--bad)">${fmt(r.c.final)}</td><td class="c">${badge(cls,r.c.final)}</td>
+        <td>${probTags(cls,r.s.id)}</td></tr>`).join("")}</tbody></table></div>`
+      :`<div class="empty" style="padding:32px"><h3>本班都在及格線以上 🎉</h3><p>目前沒有需要特別關注的學生。</p></div>`}</div></div>`;
+}
+
+/* 學生名單 */
+function rosterView(){
+  const cls=C(), st=cls.students;
+  return head("學生名單")+`
+  <div class="card"><div class="card-h"><div><h2>${esc(cls.name)} · 名單</h2><div class="sub">共 ${st.length} 位;切換上方「目前班級」即切換所有頁面</div></div>
+    <div class="row"><button class="btn sm" data-nav="sync">從檔案匯入</button><button class="btn pri sm" id="addStu">＋ 新增學生</button></div></div>
+    <div class="card-b flush">${st.length?`<div class="scroll"><table class="tbl">
+      <thead><tr><th style="width:120px">帳號</th><th style="width:70px">座號</th><th>姓名</th><th>院系</th><th style="width:90px">班級</th><th class="r" style="width:100px"></th></tr></thead>
+      <tbody>${st.map(s=>`<tr><td class="sid">${esc(s.sid)||'—'}</td><td class="num">${esc(s.seat)||'—'}</td><td>${esc(s.name)}</td>
+        <td style="color:var(--ink-soft)">${esc(s.dept)||'—'}</td><td>${s.group?`<span class="grp">${esc(s.group)}</span>`:'—'}</td>
+        <td class="r"><button class="btn ghost sm" data-edit="${s.id}">編輯</button><button class="btn ghost sm" data-del="${s.id}" style="color:var(--bad)">刪</button></td></tr>`).join("")}</tbody></table></div>`
+      :`<div class="empty"><h3>本班還沒有學生</h3><p>直接上傳平台匯出的成績單,名單與成績會一次帶入。</p>
+        <div class="row" style="justify-content:center"><button class="btn pri" data-nav="sync">從檔案匯入</button><button class="btn" id="addStu2">＋ 手動新增</button></div></div>`}</div></div>`;
+}
+
+/* 點名成績 */
+function attendView(){
+  const cls=C(), st=cls.students;
+  if(!st.length) return head("點名成績")+needStu();
+  const rate=classAttRate(cls);
+  const low=st.filter(s=>{const a=attendanceScore(cls,s.id);return a!=null&&a<60;}).length;
+  return head("點名成績")+`
+  <div class="card"><div class="card-h"><div><h2>點名成績</h2>
+      <div class="sub">依平台成績單的點名成績(0–100);上傳新檔即自動更新${rate!=null?` · 班平均 <b class="num">${fmt(rate)}</b>`:''}${low?` · <span style="color:var(--bad)">${low} 人偏低</span>`:''}</div></div>
+    <button class="btn sm" data-nav="sync">從檔案更新 ⟳</button></div>
+    <div class="card-b flush"><div class="scroll"><table class="tbl">
+      <thead><tr><th style="width:120px">帳號</th><th style="width:70px">座號</th><th>姓名</th><th style="width:80px">班級</th><th class="c" style="width:120px">點名成績</th><th class="c" style="width:90px">狀態</th></tr></thead>
+      <tbody>${st.map(s=>{const a=attendanceScore(cls,s.id);const bad=a!=null&&a<60;return `<tr>
+        <td class="sid">${esc(s.sid)}</td><td class="num">${esc(s.seat)||'—'}</td><td>${esc(s.name)}</td>
+        <td>${s.group?`<span class="grp">${esc(s.group)}</span>`:'—'}</td>
+        <td class="c"><input class="cell-in big num" data-ad="${s.id}" value="${cls.attDirect[s.id]??''}" inputmode="decimal" placeholder="—"></td>
+        <td class="c">${a==null?'<span style="color:var(--ink-faint)">—</span>':(bad?'<span class="badge bad">偏低</span>':'<span class="badge ok">正常</span>')}</td></tr>`;}).join("")}</tbody></table></div></div></div>`;
+}
+
+/* 成績登錄 */
+function gradesView(){
+  const cls=C(), st=cls.students;
+  if(!st.length) return head("成績登錄")+needStu();
+  const items=cls.gradeItems;
+  const shown=gradeTab==="all"?items:items.filter(i=>i.category===gradeTab);
+  const tw=items.reduce((a,i)=>a+(+i.weight||0),0);
+  const catW=c=>items.filter(i=>i.category===c).reduce((a,i)=>a+(+i.weight||0),0);
+  const hd=shown.map(i=>`<th class="c">${esc(i.name)}<br><span class="num" style="font-weight:400;color:var(--ink-faint)">/${(+i.max)||100} · ${i.weight}%</span></th>`).join("");
+  return head("成績登錄")+`
+  <div class="card"><div class="card-h"><div><h2>成績項目</h2>
+      <div class="sub">配分合計 <span class="mono-tot num">${tw}%</span> · 作業 ${catW('作業')}% · 考試 ${catW('考試')}%</div></div>
+    <div class="row"><div class="tabs">${["all","作業","考試"].map(t=>`<button data-gtab="${t}" class="${gradeTab===t?'on':''}">${t==='all'?'全部':t}</button>`).join("")}</div>
+      <button class="btn pri sm" id="addItem">＋ 新增項目</button></div></div>
+    <div class="card-b"><div class="row">${shown.length?shown.map(i=>`<div style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;align-items:center;gap:8px">
+      <span class="grp" style="border-color:${i.category==='作業'?'#B7D0C9':'#B9C6DE'};color:${i.category==='作業'?'var(--att)':'var(--grd)'}">${esc(i.category)}</span>
+      <b>${esc(i.name)}</b><span class="grp num">/${(+i.max)||100} · ${i.weight}%</span>
+      <button class="btn ghost sm" data-edititem="${i.id}">改</button><button class="btn ghost sm" data-delitem="${i.id}" style="color:var(--bad)">×</button></div>`).join("")
+      :'<span class="hint">此分類尚無項目。</span>'}</div>
+      ${tw!==100?`<p class="hint" style="margin:10px 0 0">配分合計 ${tw}%。系統會依各項權重<b>比例</b>換算,合計不一定要 100%(例如 200% 與 100% 效果相同,只看相對比例)。</p>`:''}</div></div>
+  <div class="card"><div class="card-h"><div><h2>分數登錄</h2><div class="sub">登錄原始分,系統依各項滿分換算後加權</div></div></div>
+    <div class="card-b flush"><div class="scroll"><table class="tbl">
+      <thead><tr><th style="width:110px">帳號</th><th>姓名</th>${hd||'<th></th>'}<th class="r">加權成績</th></tr></thead>
+      <tbody>${st.map(s=>{const g=cls.grades[s.id]||{};return `<tr><td class="sid">${esc(s.sid)}</td><td>${esc(s.name)}</td>
+        ${shown.map(i=>`<td class="c"><input class="cell-in num" data-g="${s.id}|${i.id}" value="${g[i.id]??''}" inputmode="decimal" placeholder="—"></td>`).join("")||'<td></td>'}
+        <td class="r final">${fmt(gradeScore(cls,s.id))}</td></tr>`;}).join("")}</tbody></table></div></div></div>`;
+}
+
+/* 課堂績效 */
+function perfView(){
+  const cls=C(), st=cls.students;
+  if(!st.length) return head("課堂績效")+needStu();
+  const log=(cls.perfLog||[]).slice().reverse();
+  const nameOf=id=>{const s=cls.students.find(x=>x.id===id);return s?s.name:'—';};
+  const sidOf=id=>{const s=cls.students.find(x=>x.id===id);return s?s.sid:'—';};
+  return head("課堂績效")+`
+  <div class="card"><div class="card-h"><div><h2>課堂加分紀錄</h2><div class="sub">哪一堂課 · 學號 · 姓名 · 加分 · 備註;加分累加進混合成績</div></div>
+    <button class="btn pri sm" id="addPerf">＋ 新增績效</button></div>
+    <div class="card-b flush">${log.length?`<div class="scroll"><table class="tbl">
+      <thead><tr><th style="width:170px">哪一堂課</th><th style="width:110px">學號</th><th>姓名</th><th class="c" style="width:80px">加分</th><th>備註</th><th class="r" style="width:56px"></th></tr></thead>
+      <tbody>${log.map(e=>`<tr><td style="color:var(--ink-soft)">${esc(e.session)||'—'}</td>
+        <td class="sid">${esc(sidOf(e.studentId))}</td><td>${esc(nameOf(e.studentId))}</td>
+        <td class="c num" style="color:var(--gold);font-weight:700">+${esc(e.bonus)}</td>
+        <td style="color:var(--ink-soft)">${esc(e.note)||'—'}</td>
+        <td class="r"><button class="btn ghost sm" data-delperf="${e.id}" style="color:var(--bad)">刪</button></td></tr>`).join("")}</tbody></table></div>`
+      :`<div class="empty"><h3>還沒有任何加分紀錄</h3><p>課堂表現好(上台、發問、協助同學⋯)就記一筆。</p><button class="btn pri" id="addPerf2">＋ 新增第一筆</button></div>`}</div></div>`;
+}
+
+/* 混合成績 */
+function finalView(){
+  const cls=C(), st=cls.students;
+  if(!st.length) return head("混合成績")+needStu();
+  let rows=st.map(s=>({s,c:compute(cls,s.id)}));
+  const k=sortFinal.key,d=sortFinal.dir;
+  rows.sort((x,y)=>{ if(k==="name") return x.s.name.localeCompare(y.s.name,'zh-Hant')*d;
+    if(k==="sid") return String(x.s.sid).localeCompare(String(y.s.sid))*d;
+    const A=k==="att"?(x.c.a??-1):k==="grd"?(x.c.g??-1):x.c.final, B=k==="att"?(y.c.a??-1):k==="grd"?(y.c.g??-1):y.c.final;
+    return (A-B)*d; });
+  const maxC=Math.max(1,...rows.map(r=>r.c.contrib.att+r.c.contrib.grd));
+  const ar=key=>k===key?(d<0?' ▾':' ▴'):'';
+  return head("混合成績")+`
+  <div class="card"><div class="card-h"><div><h2>混合成績總表</h2><div class="sub">綜合點名與各項成績的加權總分,再加課堂加分</div></div>
+    <button class="btn sm" id="expCsv">匯出 CSV</button></div>
+    <div class="card-b" style="padding-bottom:6px"><div class="legend"><span><i class="comp-att"></i>點名貢獻</span><span><i class="comp-grd"></i>成績貢獻</span>
+      <span style="margin-left:auto">狀態不良時,「問題」欄會標出原因</span></div></div>
+    <div class="card-b flush"><div class="scroll"><table class="tbl">
+      <thead><tr><th data-sort="sid" style="cursor:pointer;width:96px">帳號${ar('sid')}</th>
+        <th data-sort="name" style="cursor:pointer">姓名${ar('name')}</th>
+        <th class="c" data-sort="att" style="cursor:pointer">點名${ar('att')}</th>
+        <th class="c" data-sort="grd" style="cursor:pointer">成績${ar('grd')}</th>
+        <th style="width:130px">組成</th>
+        <th class="r" data-sort="final" style="cursor:pointer">混合分${ar('final')}</th>
+        <th class="c" style="width:62px">狀態</th><th style="width:180px">問題</th></tr></thead>
+      <tbody>${rows.map(r=>{const c=r.c,sc=100/maxC;return `<tr>
+        <td class="sid">${esc(r.s.sid)}</td>
+        <td>${esc(r.s.name)}${c.bonus?` <span class="grp" style="color:var(--gold);border-color:#E5D3A6">+${c.bonus}</span>`:''}</td>
+        <td class="c num">${fmt(c.a,0)}</td><td class="c num">${fmt(c.g,0)}</td>
+        <td><div class="compbar" title="點名 ${fmt(c.contrib.att)}｜成績 ${fmt(c.contrib.grd)}"><i class="comp-att" style="width:${c.contrib.att*sc}%"></i><i class="comp-grd" style="width:${c.contrib.grd*sc}%"></i></div></td>
+        <td class="r final" style="color:${c.final>=cls.settings.passLine?'var(--ink)':'var(--bad)'}">${fmt(c.final)}</td>
+        <td class="c">${badge(cls,c.final)}</td><td>${probTags(cls,r.s.id)}</td></tr>`;}).join("")}</tbody></table></div></div></div>`;
+}
+
+/* 匯入更新(同步) */
+function syncView(){
+  const cls=C();
+  const p=pendingSync;
+  return head("匯入更新")+`
+  <div class="card"><div class="card-h"><div><h2>上傳平台成績單</h2>
+      <div class="sub">格式同平台匯出的檔案(.xlsx / .csv)。以<b>帳號或姓名</b>對齊學生、以<b>欄位名稱</b>對齊成績項目;點名欄可省略</div></div></div>
+    <div class="card-b">
+      <div class="drop" id="drop">
+        <div style="font-size:26px;margin-bottom:6px">⟳</div>
+        <b>把檔案拖曳到這裡,或</b> <button class="btn pri sm" id="pick">選擇檔案</button>
+        <p class="hint" style="margin:10px 0 0">將匯入至目前班級:<b>${esc(cls.name)}</b>(切換上方班級可換目標)</p>
+      </div>
+      <p class="hint" style="margin-top:12px">
+        · <b>對齊學生</b>:先比帳號,帳號對不到再比姓名(姓名唯一即可);其一對上就視為同一人<br>
+        · <b>欄位已存在</b>(如「小考1」)→ 只比對分數,有變動才更新<br>
+        · <b>欄位不存在</b> → 新增為成績項目(需自行設定配分與滿分)<br>
+        · <b>對得上</b> → 更新有變動的資料(帳號/座號/姓名/院系/班級/點名/分數)<br>
+        · <b>對不上</b> → 新增此學生<br>
+        · <b>點名欄可有可無</b>:沒有點名欄時不會動到既有點名成績<br>
+        · 標記「未繳」視為未繳交(空白)
+      </p>
+    </div></div>
+  ${p?diffCard(p):""}`;
+}
+function diffCard(p){
+  const plan=p.plan;
+  const grp=(title,n,color,html)=>n?`<details class="diffgrp" ${n<=12?'open':''}><summary><span>${title}</span><span class="badge ${color}">${n}</span></summary><div class="difflist">${html}</div></details>`:"";
+  const v=x=>x==null?'<span style="color:var(--ink-faint)">未繳</span>':`<span class="num">${x}</span>`;
+  return `<div class="card"><div class="card-h"><div><h2>比對結果 · ${esc(p.fileName)}</h2>
+      <div class="sub">檔案 ${p.parsed.rows.length} 筆 · 對到 ${plan.matched} 人 · 未變動 ${plan.same} 個分數</div></div>
+    <div class="row"><button class="btn" id="syncCancel">取消</button><button class="btn gold" id="syncApply">套用 ${plan.total} 項變更</button></div></div>
+    <div class="card-b" style="display:flex;flex-direction:column;gap:10px">
+      ${plan.total===0?`<div class="empty" style="padding:24px"><h3>資料已是最新 ✓</h3><p>檔案內容與目前班級完全一致,沒有需要更新的項目。</p></div>`:""}
+      ${grp("新增成績項目(欄位)",plan.newItems.length,"add",`<table>${plan.newItems.map(i=>`<tr><td><b>${esc(i.name)}</b></td><td><span class="grp">${esc(i.category)}</span></td><td class="hint">新欄位 · 配分與滿分預設 0 / 100,請至成績登錄調整</td></tr>`).join("")}</table>`)}
+      ${grp("新增學生",plan.newStu.length,"add",`<table>${plan.newStu.map(r=>`<tr><td class="num">${esc(r.sid)}</td><td><b>${esc(r.name)}</b></td><td>${esc(r.dept)}</td><td>${esc(r.group)}</td><td class="hint">點名 ${r.att==null?'—':r.att}</td></tr>`).join("")}</table>`)}
+      ${grp("更新點名成績",plan.updAtt.length,"chg",`<table>${plan.updAtt.map(u=>`<tr><td class="num">${esc(u.acct)}</td><td>${esc(u.name)}</td><td class="r"><span class="oldv">${u.from==null?'—':u.from}</span><span class="arrow">→</span><span class="newv">${u.to==null?'—':u.to}</span></td></tr>`).join("")}</table>`)}
+      ${grp("更新成績分數",plan.updGrade.length,"chg",`<table>${plan.updGrade.map(u=>`<tr><td class="num">${esc(u.acct)}</td><td>${esc(u.name)}</td><td><span class="grp">${esc(u.itemName)}</span></td><td class="r"><span class="oldv">${u.from==null?'未繳':u.from}</span><span class="arrow">→</span><span class="newv">${u.to==null?'未繳':u.to}</span></td></tr>`).join("")}</table>`)}
+      ${grp("更新學生資料",plan.updStu.length,"chg",`<table>${plan.updStu.map(u=>`<tr><td class="num">${esc(u.acct)}</td><td>${esc(u.name)}</td><td class="grp">${esc({sid:'帳號',seat:'座號',name:'姓名',dept:'院系',group:'班級'}[u.field])}</td><td class="r"><span class="oldv">${esc(u.from)||'—'}</span><span class="arrow">→</span><span class="newv">${esc(u.to)}</span></td></tr>`).join("")}</table>`)}
+    </div></div>`;
+}
+
+/* 設定 */
+function settingsView(){
+  const cls=C(), s=cls.settings, w=s.weights, wt=weightTotal(cls);
+  return head("設定")+`
+  <div class="grid2">
+    <div class="card"><div class="card-h"><h2>班級資訊</h2></div><div class="card-b">
+      <div><label class="fl">班級名稱</label><input class="f" data-set="name" value="${esc(cls.name)}"></div>
+      <div style="margin-top:12px"><label class="fl">學期</label><input class="f" data-set="term" value="${esc(cls.term)}"></div>
+      <div style="margin-top:12px"><label class="fl">及格線</label><input class="f num" data-sets="passLine" value="${s.passLine}" style="width:100px" inputmode="numeric"></div>
+    </div></div>
+    <div class="card"><div class="card-h"><div><h2>混合權重</h2><div class="sub">點名 + 成績,建議合計 100%</div></div>
+      <span class="num" style="font-weight:700;color:${wt===100?'var(--ok)':'var(--bad)'}">${wt}%</span></div>
+      <div class="card-b"><div class="grid2">
+        <div><label class="fl" style="color:var(--att)">點名 %</label><input class="f num" data-w="attendance" value="${w.attendance}" inputmode="numeric"></div>
+        <div><label class="fl" style="color:var(--grd)">成績 %</label><input class="f num" data-w="grade" value="${w.grade}" inputmode="numeric"></div>
+      </div>${wt!==100?`<p class="hint" style="color:var(--bad);margin:10px 0 0">合計 ${wt}%,計算仍依此比例,建議調為 100%。</p>`:''}
+      <p class="hint" style="margin-top:10px">未繳/空白成績:
+        <span class="tabs" style="display:inline-flex;vertical-align:middle">
+          <button data-miss="1" class="${s.missingAsZero?'on':''}">計為 0 分</button>
+          <button data-miss="0" class="${!s.missingAsZero?'on':''}">不列入計算</button></span></p>
+      </div></div>
+  </div>
+  <div class="card"><div class="card-h"><h2>班級與資料管理</h2></div><div class="card-b"><div class="row">
+    <button class="btn" id="addCls2">＋ 新增班級</button>
+    <button class="btn danger" id="delCls">刪除目前班級</button>
+    <span style="flex:1"></span>
+    <button class="btn" id="expJson">匯出備份</button>
+    <button class="btn" id="impJson">匯入備份</button>
+    <button class="btn danger" id="wipe">清除全部</button>
+  </div><p class="hint" style="margin-top:12px">「匯出備份」含所有班級。換裝置請用備份帶著走。</p></div></div>`;
+}
+
+/* 片段 */
+function badge(cls,f){ const p=cls.settings.passLine;
+  if(f>=Math.max(p+20,80)) return `<span class="badge ok">優良</span>`;
+  if(f>=p) return `<span class="badge ok">及格</span>`;
+  if(f>=p-10) return `<span class="badge warn">邊緣</span>`;
+  return `<span class="badge bad">不及格</span>`; }
+function needStu(){ return `<div class="card"><div class="card-b"><div class="empty"><h3>本班尚無學生</h3>
+  <p>上傳平台成績單即可一次帶入名單與成績。</p><button class="btn pri" data-nav="sync">從檔案匯入</button></div></div></div>`; }
+
+/* ---------- 事件 ---------- */
+function wire(){
+  document.querySelectorAll("[data-nav]").forEach(b=>b.onclick=()=>{ view=b.dataset.nav; render(); });
+  const sel=document.getElementById("clsel"); if(sel) sel.onchange=()=>{ S.activeClass=sel.value; pendingSync=null; save(); render(); };
+  bindAll("#addCls,#addCls2,#firstAdd",()=>classModal());
+  bindAll("#firstImport,#impJson",importJSON);
+  bindAll("#delCls",deleteClass);
+
+  bindAll("#addStu,#addStu2",()=>stuModal());
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>stuModal(b.dataset.edit));
+  document.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{ askConfirm("刪除此學生及其成績?",()=>delStudent(b.dataset.del),"刪除",true); });
+
+  document.querySelectorAll("[data-ad]").forEach(inp=>{ inp.onchange=()=>{ const cls=C(),id=inp.dataset.ad,v=inp.value.trim();
+    if(v==="") delete cls.attDirect[id]; else cls.attDirect[id]=clamp(+v||0,0,100); save(); render(); }; enterBlur(inp); });
+
+  document.querySelectorAll("[data-gtab]").forEach(b=>b.onclick=()=>{ gradeTab=b.dataset.gtab; render(); });
+  bindAll("#addItem",()=>itemModal());
+  document.querySelectorAll("[data-edititem]").forEach(b=>b.onclick=()=>itemModal(b.dataset.edititem));
+  document.querySelectorAll("[data-delitem]").forEach(b=>b.onclick=()=>{ askConfirm("刪除此成績項目及所有人的該項分數?",()=>{ const cls=C();
+    cls.gradeItems=cls.gradeItems.filter(i=>i.id!==b.dataset.delitem); Object.keys(cls.grades).forEach(k=>delete cls.grades[k][b.dataset.delitem]); save(); render(); },"刪除",true); });
+  document.querySelectorAll("[data-g]").forEach(inp=>{ inp.onchange=()=>{ const [sid,iid]=inp.dataset.g.split("|"),v=inp.value.trim(); const cls=C();
+    const it=cls.gradeItems.find(x=>x.id===iid), mx=(it&&+it.max)||100;
+    cls.grades[sid]=cls.grades[sid]||{}; if(v==="") delete cls.grades[sid][iid]; else cls.grades[sid][iid]=clamp(+v||0,0,mx); save(); render(); }; enterBlur(inp); });
+
+  bindAll("#addPerf,#addPerf2",()=>perfModal());
+  document.querySelectorAll("[data-delperf]").forEach(b=>b.onclick=()=>{ const cls=C(); cls.perfLog=cls.perfLog.filter(e=>e.id!==b.dataset.delperf); save(); render(); });
+
+  document.querySelectorAll("[data-sort]").forEach(th=>th.onclick=()=>{ const key=th.dataset.sort;
+    if(sortFinal.key===key) sortFinal.dir*=-1; else sortFinal={key,dir:(key==="name"||key==="sid")?1:-1}; render(); });
+  bindAll("#expCsv",exportCSV);
+
+  // 同步
+  const pick=document.getElementById("pick"), drop=document.getElementById("drop");
+  if(pick) pick.onclick=()=>fileDialog();
+  if(drop){ drop.ondragover=e=>{ e.preventDefault(); drop.classList.add("hot"); };
+    drop.ondragleave=()=>drop.classList.remove("hot");
+    drop.ondrop=e=>{ e.preventDefault(); drop.classList.remove("hot"); if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }; }
+  bindAll("#syncCancel",()=>{ pendingSync=null; render(); });
+  bindAll("#syncApply",()=>{ const cls=C(); applySync(cls,pendingSync.plan,pendingSync.parsed);
+    const n=pendingSync.plan.total; pendingSync=null; view="final"; render(); toast("已套用 "+n+" 項變更"); });
+
+  document.querySelectorAll("[data-set]").forEach(inp=>inp.onchange=()=>{ C()[inp.dataset.set]=inp.value; save(); render(); });
+  document.querySelectorAll("[data-sets]").forEach(inp=>inp.onchange=()=>{ C().settings[inp.dataset.sets]=clamp(+inp.value||0,0,100); save(); render(); });
+  document.querySelectorAll("[data-w]").forEach(inp=>inp.onchange=()=>{ C().settings.weights[inp.dataset.w]=clamp(+inp.value||0,0,100); save(); render(); });
+  document.querySelectorAll("[data-miss]").forEach(b=>b.onclick=()=>{ C().settings.missingAsZero=b.dataset.miss==="1"; save(); render(); });
+  bindAll("#expJson",exportJSON);
+  bindAll("#wipe",()=>{ askConfirm("清除全部班級與資料?建議先匯出備份。",()=>{ S=defaultState(); save(); view="dash"; render(); toast("已清除"); },"全部清除",true); });
+}
+function bindAll(sel,fn){ document.querySelectorAll(sel).forEach(el=>el.onclick=fn); }
+function enterBlur(inp){ inp.onkeydown=e=>{ if(e.key==="Enter") inp.blur(); }; }
+
+function fileDialog(){ const i=document.createElement("input"); i.type="file"; i.accept=".xlsx,.xls,.csv";
+  i.onchange=()=>{ if(i.files[0]) handleFile(i.files[0]); }; i.click(); }
+async function handleFile(file){
+  const cls=C();
+  try{
+    const parsed=await readFile(file);
+    if(!parsed.rows.length){ toast("檔案中沒有讀到學生資料"); return; }
+    const plan=planSync(cls,parsed);
+    const proceed=()=>{ pendingSync={fileName:file.name,parsed,plan}; view="sync"; render();
+      toast(plan.total?("比對完成:"+plan.total+" 項變更"):"資料已是最新"); };
+    if(cls.students.length && plan.matched===0)
+      askConfirm("這個檔案的帳號和「"+cls.name+"」完全對不上,可能選錯班級了。\n仍要繼續嗎?(會全部視為新學生)",proceed,"仍要繼續");
+    else proceed();
+  }catch(e){ toast("讀取失敗:"+(e.message||e)); }
+}
+
+/* ---------- 操作 ---------- */
+function delStudent(id){ const cls=C(); cls.students=cls.students.filter(s=>s.id!==id);
+  delete cls.grades[id]; delete cls.attDirect[id]; cls.perfLog=cls.perfLog.filter(e=>e.studentId!==id); save(); render(); }
+function deleteClass(){ if(S.classes.length<=1){ toast("至少保留一個班級"); return; }
+  askConfirm("刪除班級「"+C().name+"」及其所有資料?",()=>{ S.classes=S.classes.filter(c=>c.id!==S.activeClass);
+    S.activeClass=S.classes[0].id; save(); view="dash"; render(); toast("已刪除班級"); },"刪除班級",true); }
+
+/* ---------- Modal ---------- */
+function modal(title,html,onSave,saveLabel="儲存"){
+  const ov=document.createElement("div"); ov.className="ov";
+  ov.innerHTML=`<div class="modal"><div class="modal-h">${esc(title)}<button class="x">×</button></div><div class="modal-b">${html}</div>
+    <div class="modal-f"><button class="btn" data-cancel>取消</button><button class="btn pri" data-ok>${esc(saveLabel)}</button></div></div>`;
+  document.body.appendChild(ov); const close=()=>ov.remove();
+  ov.querySelector(".x").onclick=close; ov.querySelector("[data-cancel]").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); };
+  ov.querySelector("[data-ok]").onclick=()=>{ if(onSave(ov)!==false) close(); };
+  const f=ov.querySelector("input,textarea,select"); if(f) f.focus(); return ov;
+}
+function askConfirm(msg,onYes,yesLabel="確定",danger=false){
+  const ov=document.createElement("div"); ov.className="ov";
+  ov.innerHTML=`<div class="modal" style="max-width:420px"><div class="modal-h">請確認<button class="x">×</button></div>
+    <div class="modal-b"><p style="margin:0;line-height:1.7;white-space:pre-line">${esc(msg)}</p></div>
+    <div class="modal-f"><button class="btn" data-no>取消</button><button class="btn ${danger?'danger':'pri'}" data-yes>${esc(yesLabel)}</button></div></div>`;
+  document.body.appendChild(ov); const close=()=>ov.remove();
+  ov.querySelector(".x").onclick=close; ov.querySelector("[data-no]").onclick=close; ov.onclick=e=>{ if(e.target===ov) close(); };
+  ov.querySelector("[data-yes]").onclick=()=>{ close(); onYes(); };
+}
+function classModal(){ modal("新增班級",`<div><label class="fl">班級名稱 *</label><input class="f" id="m_cn" placeholder="例如:微積分實習-風保系"></div>
+  <div><label class="fl">學期</label><input class="f" id="m_ct" value="1122"></div>
+  <p class="hint">建立後可到「匯入更新」上傳平台成績單,一次帶入名單與成績。</p>`,
+  ov=>{ const n=ov.querySelector("#m_cn").value.trim(); if(!n){ toast("請輸入名稱"); return false; }
+    const c=newClass(n); c.term=ov.querySelector("#m_ct").value.trim()||"1122"; S.classes.push(c); S.activeClass=c.id; pendingSync=null; view="sync"; save(); render(); }); }
+function stuModal(id){ const cls=C(); const s=id?cls.students.find(x=>x.id===id):{sid:"",seat:"",name:"",dept:"",group:""};
+  modal(id?"編輯學生":"新增學生",`<div class="grid2"><div><label class="fl">帳號</label><input class="f" id="m_sid" value="${esc(s.sid)}"></div>
+    <div><label class="fl">座號</label><input class="f" id="m_seat" value="${esc(s.seat)}"></div></div>
+    <div><label class="fl">姓名 *</label><input class="f" id="m_name" value="${esc(s.name)}"></div>
+    <div class="grid2"><div><label class="fl">院系</label><input class="f" id="m_dept" value="${esc(s.dept)}"></div>
+    <div><label class="fl">班級</label><input class="f" id="m_group" value="${esc(s.group)}" placeholder="A / B / C"></div></div>`,
+    ov=>{ const name=ov.querySelector("#m_name").value.trim(); if(!name){ toast("請輸入姓名"); return false; }
+      const d={sid:ov.querySelector("#m_sid").value.trim(),seat:ov.querySelector("#m_seat").value.trim(),name,
+        dept:ov.querySelector("#m_dept").value.trim(),group:ov.querySelector("#m_group").value.trim()};
+      if(id) Object.assign(cls.students.find(x=>x.id===id),d); else cls.students.push({id:uid(),...d}); save(); render(); }); }
+function itemModal(id){ const cls=C(); const it=id?cls.gradeItems.find(x=>x.id===id):{name:"",weight:0,max:100,category:gradeTab==="作業"?"作業":"考試"};
+  modal(id?"編輯成績項目":"新增成績項目",`<div><label class="fl">項目名稱 *</label><input class="f" id="m_iname" value="${esc(it.name)}" placeholder="例如:作業一 / 小考一"></div>
+    <div class="grid2"><div><label class="fl">分類</label><select class="f" id="m_icat"><option ${it.category==='作業'?'selected':''}>作業</option><option ${it.category==='考試'?'selected':''}>考試</option></select></div>
+    <div><label class="fl">配分權重(%)</label><input class="f num" id="m_iw" value="${it.weight}" inputmode="numeric"></div></div>
+    <div><label class="fl">滿分</label><input class="f num" id="m_imax" value="${(+it.max)||100}" inputmode="numeric">
+      <p class="hint" style="margin-top:5px">登錄原始分;系統以「原始分 ÷ 滿分 × 100」換算後再加權。例如作業滿分 10、登 8 即 80%。</p></div>`,
+    ov=>{ const name=ov.querySelector("#m_iname").value.trim(); if(!name){ toast("請輸入名稱"); return false; }
+      const d={name,category:ov.querySelector("#m_icat").value,weight:clamp(+ov.querySelector("#m_iw").value||0,0,100000),
+        max:Math.max(1,+ov.querySelector("#m_imax").value||100)};
+      if(id) Object.assign(it,d); else cls.gradeItems.push({id:uid(),...d}); save(); render(); }); }
+function perfModal(){ const cls=C();
+  modal("新增課堂績效",`<div><label class="fl">哪一堂課</label><input class="f" id="m_ps" value="${todayISO()}" placeholder="例如:2026-03-11 第 5 週"></div>
+    <div><label class="fl">學生</label><select class="f" id="m_pstu">${cls.students.map(s=>`<option value="${s.id}">${esc(s.sid)} ${esc(s.name)}</option>`).join("")}</select></div>
+    <div><label class="fl">加分</label><input class="f num" id="m_pb" value="1" inputmode="decimal" style="width:120px"></div>
+    <div><label class="fl">備註</label><input class="f" id="m_pn" placeholder="上台報告、踴躍發問…"></div>`,
+    ov=>{ cls.perfLog.push({id:uid(),session:ov.querySelector("#m_ps").value.trim(),studentId:ov.querySelector("#m_pstu").value,
+      bonus:clamp(+ov.querySelector("#m_pb").value||0,0,100),note:ov.querySelector("#m_pn").value.trim(),ts:Date.now()});
+      save(); render(); },"新增"); }
+
+/* ---------- 匯出/匯入 ---------- */
+function download(name,text,type="text/plain"){ const b=new Blob(["\ufeff"+text],{type}),u=URL.createObjectURL(b);
+  const a=document.createElement("a"); a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u); }
+function exportCSV(){ const cls=C(), items=cls.gradeItems;
+  const hdr=["帳號","座號","姓名","院系","班級","點名成績",...items.map(i=>i.name+"(/"+((+i.max)||100)+")"),"加權成績","加分","混合成績","狀態","問題"];
+  const lines=[hdr.join(",")];
+  cls.students.forEach(s=>{ const c=compute(cls,s.id), g=cls.grades[s.id]||{};
+    const row=[s.sid,s.seat,s.name,s.dept,s.group,c.a==null?"":c.a,...items.map(i=>g[i.id]??"未繳"),fmt(c.g),c.bonus,fmt(c.final),
+      c.final>=cls.settings.passLine?"及格":"不及格", diagnose(cls,s.id).join(" / ")];
+    lines.push(row.map(x=>`"${String(x??"").replace(/"/g,'""')}"`).join(",")); });
+  download(cls.name+"_混合成績_"+todayISO()+".csv",lines.join("\n"),"text/csv"); toast("已匯出 CSV"); }
+function exportJSON(){ download("成績系統備份_"+todayISO()+".json",JSON.stringify(S,null,1),"application/json"); toast("已匯出備份"); }
+function importJSON(){ const inp=document.createElement("input"); inp.type="file"; inp.accept=".json,application/json";
+  inp.onchange=()=>{ const f=inp.files[0]; if(!f) return; const r=new FileReader();
+    r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.classes||!Array.isArray(d.classes)) throw 0;
+      askConfirm("匯入將覆蓋目前所有班級,確定?",()=>{ S=migrate(d); if(!S.activeClass&&S.classes.length) S.activeClass=S.classes[0].id;
+        save(); view="dash"; render(); toast("已匯入 "+S.classes.length+" 個班級"); },"覆蓋匯入",true);
+    }catch(e){ toast("檔案格式不正確"); } }; r.readAsText(f); }; inp.click(); }
+
+/* ---------- Toast ---------- */
+let toastTimer;
+function toast(msg){ let t=document.querySelector(".toast"); if(!t){ t=document.createElement("div"); t.className="toast"; document.body.appendChild(t); }
+  t.textContent=msg; requestAnimationFrame(()=>t.classList.add("show")); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("show"),2400); }
+
+(async function init(){ await loadState(); render(); })();
+</script>
